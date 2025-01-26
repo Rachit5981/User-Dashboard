@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Card from "../components/Card";
 import CreateUserForm from "../components/CreateUserForm";
 import EditUserForm from "../components/EditUserForm";
+import SkeletonCard from "../components/SkeletonCard";
 
 function Dashboard() {
   const [users, setUsers] = useState([]);
@@ -18,12 +19,14 @@ function Dashboard() {
     edit: false,
     delete: null,
   });
+  const [isAppLoading, setIsAppLoading] = useState(true);
 
   useEffect(() => {
     fetch("https://jsonplaceholder.typicode.com/users")
       .then((response) => response.json())
       .then((data) => setUsers(data))
-      .catch((error) => console.error("Error fetching users:", error));
+      .catch((error) => console.error("Error fetching users:", error))
+      .finally(() => setIsAppLoading(false));
   }, []);
 
   const handleCreateUser = (user) => {
@@ -153,24 +156,32 @@ function Dashboard() {
         />
       )}
 
-      <div
-        className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-8 py-6 transition-opacity bg-blue-100 ${
-          showCreateForm || showEditForm ? "opacity-50" : "opacity-100"
-        }`}
-      >
-        {users.map((user) => (
-          <Card
-            key={user.id}
-            user={user}
-            onEdit={() => {
-              setEditingUser(user);
-              setShowEditForm(true);
-            }}
-            onDelete={() => handleDeleteUser(user.id)}
-            isDeleting={isLoading.delete === user.id}
-          />
-        ))}
-      </div>
+      {isAppLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-8 py-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <SkeletonCard key={index} />
+          ))}
+        </div>
+      ) : (
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-8 py-6 transition-opacity bg-blue-100 ${
+            showCreateForm || showEditForm ? "opacity-50" : "opacity-100"
+          }`}
+        >
+          {users.map((user) => (
+            <Card
+              key={user.id}
+              user={user}
+              onEdit={() => {
+                setEditingUser(user);
+                setShowEditForm(true);
+              }}
+              onDelete={() => handleDeleteUser(user.id)}
+              isDeleting={isLoading.delete === user.id}
+            />
+          ))}
+        </div>
+      )}
 
       {notification && (
         <div
