@@ -25,6 +25,7 @@ const EditUserForm = ({ user, onSubmit, onClose, isLoading }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     if (name.includes("address")) {
       const addressField = name.split(".")[1];
       setEditedUser((prevUser) => ({
@@ -53,6 +54,20 @@ const EditUserForm = ({ user, onSubmit, onClose, isLoading }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (
+      editedUser.phone.replace(/[\s\.-]/g, "").length < 10 ||
+      !/^[\d\s\.-]+$/.test(editedUser.phone)
+    ) {
+      alert("Please enter a valid phone number.");
+      return;
+    }
+
+    const websiteRegex = /^(https?:\/\/)?([\w\d-]+\.)+[\w\d-]+(\/.*)?$/;
+    if (!websiteRegex.test(editedUser.website) || editedUser.website === "") {
+      alert("Please enter a valid website URL (e.g., https://example.com).");
+      return;
+    }
     onSubmit(editedUser);
     onClose();
   };

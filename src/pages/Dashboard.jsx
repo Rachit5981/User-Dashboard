@@ -24,16 +24,26 @@ function Dashboard() {
   useEffect(() => {
     fetch("https://jsonplaceholder.typicode.com/users")
       .then((response) => response.json())
-      .then((data) => setUsers(data))
+      .then((data) => {
+        const apiUsers = data.map((user) => ({
+          ...user,
+          source: "api",
+        }));
+        setUsers(apiUsers);
+      })
       .catch((error) => console.error("Error fetching users:", error))
       .finally(() => setIsAppLoading(false));
   }, []);
 
   const handleCreateUser = (user) => {
     setIsLoading((prev) => ({ ...prev, create: true }));
-    const tempId = Date.now();
-    const userWithTempId = { ...user, id: tempId };
-    console.log(tempId);
+    const localId = `local-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const newUser = {
+      ...user,
+      id: localId,
+      source: "local",
+    };
 
     fetch("https://jsonplaceholder.typicode.com/users", {
       method: "POST",
@@ -44,13 +54,12 @@ function Dashboard() {
     })
       .then((response) => response.json())
       .then((data) => {
-        const finalUser = { ...userWithTempId, id: data.id || tempId };
-        setUsers([...users, finalUser]);
+        setUsers((prevUsers) => [...prevUsers, newUser]);
         setShowCreateForm(false);
         showNotification("User created!", "success");
       })
       .catch((error) => {
-        setUsers([...users, userWithTempId]);
+        setUsers((prevUsers) => [...prevUsers, newUser]);
         setShowCreateForm(false);
         console.error("Error adding user:", error);
         showNotification("User created locally", "success");
@@ -63,11 +72,18 @@ function Dashboard() {
   const handleEditUser = (updatedUser) => {
     setIsLoading((prev) => ({ ...prev, edit: true }));
 
-    const isLocalUser =
-      typeof editingUser.id === "number" && editingUser.id > 10000;
+    const isLocalUser = editingUser.source === "local";
 
-    const updatedUsers = users.map((user) =>
-      user.id === editingUser.id ? { ...updatedUser, id: editingUser.id } : user
+    const userToUpdate = {
+      ...updatedUser,
+      id: editingUser.id,
+      source: editingUser.source,
+    };
+
+    setUsers((prevUsers) =>
+      prevUsers.map((user) =>
+        user.id === editingUser.id ? userToUpdate : user
+      )
     );
 
     if (!isLocalUser) {
@@ -84,7 +100,6 @@ function Dashboard() {
         });
     }
 
-    setUsers(updatedUsers);
     setShowEditForm(false);
     setEditingUser(null);
     showNotification("User updated!", "success");
@@ -93,17 +108,35 @@ function Dashboard() {
 
   const handleDeleteUser = (userId) => {
     setIsLoading((prev) => ({ ...prev, delete: userId }));
-    fetch(`https://jsonplaceholder.typicode.com/users/${userId}`, {
-      method: "DELETE",
-    })
-      .then(() => {
-        setUsers(users.filter((user) => user.id !== userId));
-        showNotification("User deleted!", "error");
+
+    const userToDelete = users.find((user) => user.id === userId);
+
+    if (!userToDelete) {
+      console.error("User not found:", userId);
+      return;
+    }
+
+    if (userToDelete.source === "api") {
+      fetch(`https://jsonplaceholder.typicode.com/users/${userId}`, {
+        method: "DELETE",
       })
-      .catch((error) => console.error("Error deleting user:", error))
-      .finally(() => {
-        setIsLoading((prev) => ({ ...prev, delete: null }));
-      });
+        .then(() => {
+          setUsers((prevUsers) =>
+            prevUsers.filter((user) => user.id !== userId)
+          );
+          showNotification("User deleted!", "error");
+        })
+        .catch((error) => {
+          console.error("Error deleting user:", error);
+        })
+        .finally(() => {
+          setIsLoading((prev) => ({ ...prev, delete: null }));
+        });
+    } else {
+      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userId));
+      setIsLoading((prev) => ({ ...prev, delete: null }));
+      showNotification("User deleted!", "error");
+    }
   };
 
   const showNotification = (message, type) => {
@@ -115,6 +148,10 @@ function Dashboard() {
       setNotificationType("");
     }, 3000);
   };
+
+  useEffect(() => {
+    console.log("Current users:", users);
+  }, [users]);
 
   return (
     <div className="flex flex-col min-h-screen">
